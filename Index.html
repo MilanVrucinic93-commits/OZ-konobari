@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidencija Ljudstva — OZ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #05090f;
+    --surface: #0d1623;
+    --surface2: #162035;
+    --border: #1e3050;
+    --accent: #c9a84c;
+    --accent2: #a07830;
+    --green: #27ae60;
+    --red: #c0392b;
+    --yellow: #c9a84c;
+    --text: #e8eefc;
+    --muted: #6a7fa0;
+    --radius: 10px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, #0a1220 0%, #0d1a30 60%, #162035 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; }
+  header h1 span { color: var(--accent); }
+  .header-actions { margin-left: auto; display: flex; gap: 10px; }
+
+  /* LAYOUT */
+  .layout { display: flex; height: calc(100vh - 65px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .days-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .day-item {
+    padding: 10px 12px; border-radius: 8px;
+    cursor: pointer; margin-bottom: 4px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .day-item:hover { background: var(--surface2); }
+  .day-item.active { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.45); }
+  .day-item .day-date { font-weight: 600; font-size: 0.9rem; }
+  .day-item .day-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .day-item .day-badge {
+    display: inline-block; background: var(--accent); color: #fff;
+    border-radius: 99px; font-size: 0.65rem; padding: 1px 7px; margin-top: 4px;
+  }
+
+  /* MAIN */
+  .main { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center; padding: 80px 20px; color: var(--muted);
+  }
+  .empty-state .icon { font-size: 4rem; margin-bottom: 16px; }
+  .empty-state h2 { font-size: 1.4rem; margin-bottom: 8px; color: var(--text); }
+
+  /* DAY HEADER */
+  .day-header {
+    display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .day-header-info { flex: 1; }
+  .day-header-info h2 { font-size: 1.5rem; font-weight: 700; }
+  .day-header-info p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+  .day-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* SHIFTS */
+  .shift-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .shift-header {
+    background: var(--surface2);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .shift-title { font-weight: 700; font-size: 1rem; flex: 1; }
+  .shift-time-badge {
+    background: rgba(201,168,76,0.18); color: var(--accent);
+    border-radius: 6px; padding: 3px 10px; font-size: 0.8rem; font-weight: 600;
+  }
+  .shift-actions { display: flex; gap: 6px; }
+
+  /* TABLE */
+  .staff-table { width: 100%; border-collapse: collapse; }
+  .staff-table th {
+    padding: 10px 12px; text-align: left;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .staff-table td {
+    padding: 8px 12px; border-bottom: 1px solid rgba(46,51,77,0.5);
+    vertical-align: middle;
+  }
+  .staff-table tr:last-child td { border-bottom: none; }
+  .staff-table tr:hover td { background: rgba(201,168,76,0.06); }
+  .staff-table td { color: #ffffff; }
+
+  /* STATUS BADGE */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 99px; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; border: none; transition: all 0.15s;
+  }
+  .status-dosao { background: rgba(46,204,113,0.2); color: var(--green); }
+  .status-dosao:hover { background: rgba(46,204,113,0.35); }
+  .status-nije { background: rgba(231,76,60,0.2); color: var(--red); }
+  .status-nije:hover { background: rgba(231,76,60,0.35); }
+  .status-neodredjeno { background: rgba(123,130,168,0.2); color: var(--muted); }
+  .status-neodredjeno:hover { background: rgba(123,130,168,0.35); }
+
+  /* INPUTS inline */
+  .inline-input {
+    background: transparent; border: 1px solid transparent;
+    color: #ffffff; font-family: var(--font); font-size: 0.88rem;
+    padding: 5px 8px; border-radius: 6px; width: 100%;
+    transition: all 0.15s;
+  }
+  .inline-input:hover { border-color: var(--border); background: var(--surface2); }
+  .inline-input:focus { outline: none; border-color: var(--accent); background: var(--surface2); }
+  .inline-input::placeholder { color: #4a5a78; font-style: italic; }
+  .inline-input.name-input { font-weight: 600; font-size: 0.92rem; color: #ffffff; }
+  .time-input { width: 70px; text-align: center; color: var(--accent); font-weight: 700; }
+  .comment-input { min-width: 120px; color: #c8d4ec; font-style: italic; }
+
+  /* ROW NUMBER */
+  .row-num { color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; width: 36px; }
+
+  /* DELETE BTN */
+  .btn-del {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 0.85rem;
+    transition: all 0.15s;
+  }
+  .btn-del:hover { color: var(--red); background: rgba(231,76,60,0.15); }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; border: none;
+    font-family: var(--font); font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #0d1623; }
+  .btn-primary:hover { background: #b8942e; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-success { background: rgba(46,204,113,0.2); color: var(--green); border: 1px solid rgba(46,204,113,0.3); }
+  .btn-success:hover { background: rgba(46,204,113,0.35); }
+  .btn-danger { background: rgba(231,76,60,0.2); color: var(--red); border: 1px solid rgba(231,76,60,0.3); }
+  .btn-danger:hover { background: rgba(231,76,60,0.35); }
+  .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+
+  /* ADD ROW */
+  .add-row-btn {
+    width: 100%; padding: 10px; text-align: center;
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 0.85rem;
+    transition: all 0.15s; font-family: var(--font);
+    border-top: 1px dashed var(--border);
+  }
+  .add-row-btn:hover { color: var(--accent); background: rgba(201,168,76,0.07); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%; max-width: 480px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  }
+  .modal h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 6px; }
+  .form-input {
+    width: 100%; padding: 10px 14px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font); font-size: 0.92rem;
+    border-radius: 8px; transition: border-color 0.15s;
+  }
+  .form-input:focus { outline: none; border-color: var(--accent); }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* STATS */
+  .stats-bar {
+    display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .stat-chip {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem;
+  }
+  .stat-chip .val { font-weight: 700; font-size: 1.1rem; }
+  .stat-chip.green .val { color: var(--green); }
+  .stat-chip.red .val { color: var(--red); }
+  .stat-chip.blue .val { color: var(--accent); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* TOOLTIP-like shift label editing */
+  .shift-label-input {
+    background: transparent; border: none; border-bottom: 1px dashed var(--muted);
+    color: var(--text); font-family: var(--font); font-weight: 700; font-size: 1rem;
+    width: 200px;
+  }
+  .shift-label-input:focus { outline: none; border-bottom-color: var(--accent); }
+
+  @media (max-width: 700px) {
+    .layout { flex-direction: column; height: auto; }
+    .sidebar { width: 100%; min-width: auto; height: auto; max-height: 200px; }
+    .shift-card { overflow-x: auto; }
+    .staff-table { display: table; min-width: 700px; }
+    .inline-input { min-width: 120px; }
+    .inline-input.name-input { min-width: 160px; }
+    .time-input { min-width: 50px; width: 50px; }
+    header h1 { font-size: 1rem; }
+    .header-actions { gap: 6px; }
+    .btn { padding: 6px 10px; font-size: 0.78rem; }
+  }
+
+  /* PIN SCREEN */
+  #pinScreen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #05090f;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  .pin-box {
+    background: #0d1623;
+    border: 1px solid #1e3050;
+    border-radius: 16px;
+    padding: 40px 36px;
+    width: 340px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+  }
+  .pin-logo {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: #c9a84c; margin-bottom: 6px;
+  }
+  .pin-title { font-size: 1.4rem; font-weight: 700; color: #ffffff; margin-bottom: 4px; }
+  .pin-sub { font-size: 0.82rem; color: #6a7fa0; margin-bottom: 28px; }
+  .pin-user-select {
+    width: 100%; padding: 10px 14px;
+    background: #162035; border: 1px solid #1e3050;
+    color: #ffffff; font-size: 0.92rem; border-radius: 8px;
+    margin-bottom: 14px; font-family: 'Segoe UI', sans-serif;
+  }
+  .pin-user-select:focus { outline: none; border-color: #c9a84c; }
+  .pin-dots {
+    display: flex; justify-content: center; gap: 12px; margin-bottom: 24px;
+  }
+  .pin-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #1e3050; background: transparent;
+    transition: all 0.15s;
+  }
+  .pin-dot.filled { background: #c9a84c; border-color: #c9a84c; }
+  .pin-keypad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    margin-bottom: 14px;
+  }
+  .pin-key {
+    background: #162035; border: 1px solid #1e3050;
+    color: #ffffff; font-size: 1.2rem; font-weight: 600;
+    border-radius: 10px; padding: 16px;
+    cursor: pointer; transition: all 0.12s;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .pin-key:hover { background: #1e3050; border-color: #c9a84c; color: #c9a84c; }
+  .pin-key:active { transform: scale(0.95); }
+  .pin-key.del { color: #6a7fa0; font-size: 1rem; }
+  .pin-key.zero { grid-column: 2; }
+  .pin-error {
+    color: #c0392b; font-size: 0.82rem; min-height: 20px; margin-top: 4px;
+  }
+
+  /* ADMIN PANEL */
+  #adminPanel {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.75);
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .admin-box {
+    background: #0d1623; border: 1px solid #1e3050;
+    border-radius: 14px; padding: 28px;
+    width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .admin-box h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
+  .admin-box p { color: #6a7fa0; font-size: 0.82rem; margin-bottom: 20px; }
+  .admin-list { margin-bottom: 20px; }
+  .admin-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid #1e3050;
+  }
+  .admin-row:last-child { border-bottom: none; }
+  .admin-row .aname { flex: 1; font-weight: 600; font-size: 0.92rem; }
+  .admin-row .arole { font-size: 0.72rem; color: #c9a84c; background: rgba(201,168,76,0.15); padding: 2px 8px; border-radius: 99px; }
+  .admin-row .apin { font-size: 0.85rem; color: #6a7fa0; font-family: monospace; }
+  .add-admin-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .add-admin-form input { flex: 1; min-width: 120px; }
+
+
+  /* TABS */
+  .tab-nav {
+    display: flex; gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+  }
+  .tab-btn {
+    padding: 12px 22px; border: none; background: none;
+    color: var(--muted); font-family: var(--font); font-size: 0.88rem;
+    font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent;
+    transition: all 0.15s; margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ANALYTICS */
+  .analytics-wrap { padding: 28px; overflow-y: auto; flex: 1; }
+  .analytics-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+  .analytics-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 24px; }
+
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .emp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: border-color 0.15s;
+  }
+  .emp-card:hover { border-color: var(--accent); }
+  .emp-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .emp-avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem; color: #0d1623; flex-shrink: 0;
+  }
+  .emp-name { font-weight: 700; font-size: 0.95rem; color: #fff; }
+  .emp-smene { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  .presence-bar-wrap { margin-bottom: 10px; }
+  .presence-bar-bg {
+    height: 8px; background: var(--surface2);
+    border-radius: 99px; overflow: hidden; margin-bottom: 6px;
+  }
+  .presence-bar-fill {
+    height: 100%; border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .presence-labels {
+    display: flex; justify-content: space-between;
+    font-size: 0.72rem;
+  }
+  .presence-pct { font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; }
+
+  .emp-stats { display: flex; gap: 8px; }
+  .emp-stat {
+    flex: 1; text-align: center;
+    background: var(--surface2); border-radius: 8px; padding: 6px 4px;
+  }
+  .emp-stat .esv { font-weight: 700; font-size: 1rem; }
+  .emp-stat .esl { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+  .emp-stat.green .esv { color: var(--green); }
+  .emp-stat.red .esv { color: var(--red); }
+  .emp-stat.blue .esv { color: var(--accent); }
+
+  /* Summary top cards */
+  .summary-cards {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 28px;
+  }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 22px;
+    display: flex; flex-direction: column; gap: 4px; min-width: 140px;
+  }
+  .summary-card .sc-val { font-size: 1.8rem; font-weight: 800; }
+  .summary-card .sc-lbl { font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
+  .summary-card.gold .sc-val { color: var(--accent); }
+  .summary-card.green .sc-val { color: var(--green); }
+  .summary-card.red .sc-val { color: var(--red); }
+
+  /* Sort/filter bar */
+  .analytics-controls {
+    display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .analytics-controls select {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font); font-size: 0.84rem;
+    padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .analytics-controls select:focus { outline: none; border-color: var(--accent); }
+  .analytics-controls label { font-size: 0.82rem; color: var(--muted); }
+
+</style>
+</head>
+<body>
+
+<!-- PIN SCREEN -->
+<div id="pinScreen">
+  <div class="pin-box">
+    <div class="pin-logo">Sava Centar</div>
+    <div class="pin-title">Evidencija Ljudstva</div>
+    <div class="pin-sub">Izaberite korisnika i unesite PIN</div>
+    <select class="pin-user-select" id="pinUserSelect" onchange="resetPin()">
+      <option value="">— Izaberite korisnika —</option>
+    </select>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+      <button class="pin-key zero" onclick="pinKey('0')">0</button>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+
+<!-- ANALYTICS TAB -->
+<div id="tabLayoutAnalitika" style="display:none;flex:1;overflow:hidden">
+  <div class="analytics-wrap" id="analyticsContent">
+  </div>
+</div>
+
+<!-- BIN SETUP MODAL -->
+<div class="modal-overlay" id="binSetupModal" style="display:none">
+  <div class="modal">
+    <h3>☁️ Podešavanje cloud sinhronizacije</h3>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">
+      Unesite JSONBin Bin ID da bi se podaci čuvali u cloudu i bili dostupni sa svih uređaja.
+    </p>
+    <div class="form-group">
+      <label>Bin ID</label>
+      <input type="text" class="form-input" id="binIdInput" placeholder="npr. 6654abc123...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('binSetupModal')">Otkaži</button>
+      <button class="btn btn-primary" onclick="applyBinId()">Poveži</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+  <div class="admin-box">
+    <h3>👥 Upravljanje adminima</h3>
+    <p>Dodajte, uklonite ili promenite PIN admina. Maksimalno 20 admina.</p>
+    <div class="admin-list" id="adminList"></div>
+    <div class="add-admin-form">
+      <input type="text" class="form-input" id="newAdminName" placeholder="Ime i prezime" style="flex:2">
+      <input type="text" class="form-input" id="newAdminPin" placeholder="PIN (4 cifre)" maxlength="4" style="flex:1;width:90px">
+      <button class="btn btn-primary" onclick="addAdmin()">+ Dodaj</button>
+    </div>
+    <div style="margin-top:20px;display:flex;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeAdminPanel()">Zatvori</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;flex-direction:column;line-height:1">
+    <span style="font-size:0.62rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);opacity:0.8">Sava Centar</span>
+    <h1>Evidencija <span>Ljudstva</span></h1>
+  </div>
+  <div class="header-actions">
+    <span id="syncStatus" style="font-size:0.75rem;color:var(--accent);padding:0 4px;"></span>
+    <span id="currentUserLabel" style="font-size:0.8rem;color:var(--accent);font-weight:600;padding:0 8px;"></span>
+    <button id="cloudBtn" class="btn btn-secondary" onclick="document.getElementById('binSetupModal').style.display='flex'" style="display:none">☁ Cloud</button>
+    <button id="adminBtn" class="btn btn-secondary" onclick="openAdminPanel()" style="display:none">👥 Admini</button>
+    <button class="btn btn-success" onclick="exportAllToExcel()">⬇ Export Excel</button>
+    <button class="btn btn-primary" onclick="openNewDayModal()">+ Novi dan</button>
+    <button class="btn btn-secondary" onclick="logout()" style="color:var(--red)">⏻ Odjavi se</button>
+  </div>
+</header>
+
+<div class="tab-nav">
+  <button class="tab-btn active" id="tabEvidencija" onclick="switchTab('evidencija')">📋 Evidencija</button>
+  <button class="tab-btn" id="tabAnalitika" onclick="switchTab('analitika')">📊 Analitika</button>
+</div>
+<div class="layout" id="tabLayoutEvidencija">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span>Dani</span>
+      <span id="totalDays" style="background:var(--border);border-radius:99px;padding:1px 8px;font-size:0.7rem;">0</span>
+    </div>
+    <div class="days-list" id="daysList"></div>
+  </aside>
+
+  <main class="main" id="mainContent">
+    <div class="empty-state">
+      <div class="icon">📅</div>
+      <h2>Nema unetih dana</h2>
+      <p>Kliknite <strong>"+ Novi dan"</strong> da kreirate prvi radni dan.</p>
+    </div>
+  </main>
+</div>
+
+<!-- NEW DAY MODAL -->
+<div class="modal-overlay" id="newDayModal" style="display:none">
+  <div class="modal">
+    <h3>➕ Novi radni dan</h3>
+    <div class="form-group">
+      <label>Datum</label>
+      <input type="date" class="form-input" id="newDayDate">
+    </div>
+    <div class="form-group">
+      <label>Naziv / Opis (npr. Banket A – Astra Zeneca)</label>
+      <input type="text" class="form-input" id="newDayName" placeholder="Naziv događaja">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('newDayModal')">Otkaži</button>
+      <button class="btn btn-primary" onclick="createDay()">Kreiraj dan</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW SHIFT MODAL -->
+<div class="modal-overlay" id="newShiftModal" style="display:none">
+  <div class="modal">
+    <h3>➕ Nova smena</h3>
+    <div class="form-group">
+      <label>Naziv smene</label>
+      <input type="text" class="form-input" id="newShiftName" placeholder="npr. Smena 1, Konobari A, Šank...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Od (sat)</label>
+        <input type="text" class="form-input" id="newShiftFrom" placeholder="14">
+      </div>
+      <div class="form-group">
+        <label>Do (sat)</label>
+        <input type="text" class="form-input" id="newShiftTo" placeholder="22">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('newShiftModal')">Otkaži</button>
+      <button class="btn btn-primary" onclick="createShift()">Dodaj smenu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== AUTH / PIN SYSTEM =====
+const SUPER_ADMIN = { id: 'superadmin', name: 'Milan Vrućinić', pin: '1004', role: 'super' };
+
+function loadAdmins() {
+  try {
+    const d = localStorage.getItem('ozAdmins');
+    return d ? JSON.parse(d) : [];
+  } catch(e) { return []; }
+}
+function saveAdmins(admins) {
+  localStorage.setItem('ozAdmins', JSON.stringify(admins));
+}
+
+let currentUser = null;
+let pinBuffer = '';
+
+function initPinScreen() {
+  const admins = loadAdmins();
+  const sel = document.getElementById('pinUserSelect');
+  sel.innerHTML = '<option value="">— Izaberite korisnika —</option>';
+  // Super admin first
+  const opt = document.createElement('option');
+  opt.value = SUPER_ADMIN.id;
+  opt.textContent = SUPER_ADMIN.name + ' (Super Admin)';
+  sel.appendChild(opt);
+  // Other admins
+  admins.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.id;
+    o.textContent = a.name;
+    sel.appendChild(o);
+  });
+}
+
+function resetPin() {
+  pinBuffer = '';
+  updateDots();
+  document.getElementById('pinError').textContent = '';
+}
+
+function pinKey(k) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += k;
+  updateDots();
+  if (pinBuffer.length === 4) setTimeout(checkPin, 120);
+}
+
+function pinDel() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updateDots();
+  document.getElementById('pinError').textContent = '';
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('d' + i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function checkPin() {
+  const userId = document.getElementById('pinUserSelect').value;
+  if (!userId) {
+    document.getElementById('pinError').textContent = 'Izaberite korisnika!';
+    pinBuffer = ''; updateDots(); return;
+  }
+  let user = null;
+  if (userId === SUPER_ADMIN.id) {
+    if (pinBuffer === SUPER_ADMIN.pin) user = SUPER_ADMIN;
+  } else {
+    const admins = loadAdmins();
+    const found = admins.find(a => a.id === userId);
+    if (found && pinBuffer === found.pin) user = found;
+  }
+  if (user) {
+    currentUser = user;
+    document.getElementById('pinScreen').style.display = 'none';
+    // Show admin button only for super admin
+    document.getElementById('adminBtn').style.display = user.role === 'super' ? 'inline-flex' : 'none';
+    document.getElementById('cloudBtn').style.display = user.role === 'super' ? 'inline-flex' : 'none';
+    document.getElementById('currentUserLabel').textContent = user.name;
+  } else {
+    document.getElementById('pinError').textContent = 'Pogrešan PIN, pokušajte ponovo.';
+    pinBuffer = ''; updateDots();
+  }
+}
+
+function logout() {
+  currentUser = null;
+  pinBuffer = '';
+  updateDots();
+  document.getElementById('pinUserSelect').value = '';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinScreen').style.display = 'flex';
+}
+
+// ===== ADMIN PANEL =====
+function openAdminPanel() {
+  if (!currentUser || currentUser.role !== 'super') return;
+  renderAdminList();
+  document.getElementById('adminPanel').style.display = 'flex';
+}
+function closeAdminPanel() {
+  document.getElementById('adminPanel').style.display = 'none';
+}
+
+function renderAdminList() {
+  const admins = loadAdmins();
+  const list = document.getElementById('adminList');
+  let html = `<div class="admin-row">
+    <div class="aname">${SUPER_ADMIN.name}</div>
+    <div class="arole">Super Admin</div>
+    <div class="apin">PIN: ****</div>
+  </div>`;
+  admins.forEach(a => {
+    html += `<div class="admin-row">
+      <div class="aname">${a.name}</div>
+      <div class="arole">Admin</div>
+      <div class="apin">PIN: ${a.pin}</div>
+      <button class="btn btn-danger btn-sm" onclick="deleteAdmin('${a.id}')">Obriši</button>
+    </div>`;
+  });
+  list.innerHTML = html || '<p style="color:var(--muted)">Nema admina.</p>';
+}
+
+function addAdmin() {
+  const name = document.getElementById('newAdminName').value.trim();
+  const pin = document.getElementById('newAdminPin').value.trim();
+  if (!name) return alert('Unesite ime!');
+  if (!/^\d{4}$/.test(pin)) return alert('PIN mora biti tačno 4 cifre!');
+  const admins = loadAdmins();
+  if (admins.length >= 20) return alert('Maksimalan broj admina je 20!');
+  if (admins.some(a => a.pin === pin) || pin === SUPER_ADMIN.pin) return alert('Taj PIN već postoji!');
+  admins.push({ id: uid(), name, pin, role: 'admin' });
+  saveAdmins(admins);
+  document.getElementById('newAdminName').value = '';
+  document.getElementById('newAdminPin').value = '';
+  initPinScreen();
+  renderAdminList();
+}
+
+function deleteAdmin(id) {
+  if (!confirm('Obrisati ovog admina?')) return;
+  const admins = loadAdmins().filter(a => a.id !== id);
+  saveAdmins(admins);
+  initPinScreen();
+  renderAdminList();
+}
+
+// Init on load
+window.addEventListener('DOMContentLoaded', () => {
+  initPinScreen();
+});
+
+// ===== STATE =====
+let state = { days: [], activeDayId: null };
+let pendingDayId = null;
+
+// ===== CLOUD SYNC (JSONBin) =====
+const JSONBIN_KEY = '$2a$10$XZ8kvjXO0kCTnpfS4970su647YS6zhBBLlxZ35vhUPVxf1SbDkbAa';
+let JSONBIN_ID = localStorage.getItem('ozBinId') || '6a283bb8da38895dfea15a93';
+let saveTimeout = null;
+let isSyncing = false;
+
+function showSyncStatus(msg, color='#c9a84c') {
+  let el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+async function cloudSave(data) {
+  if (!JSONBIN_ID) return;
+  try {
+    showSyncStatus('💾 Čuvanje...');
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY },
+      body: JSON.stringify(data)
+    });
+    if (resp.ok) showSyncStatus('✓ Sinhronizovano', '#27ae60');
+    else showSyncStatus('⚠ Greška pri čuvanju', '#c0392b');
+  } catch(e) { showSyncStatus('⚠ Nema interneta', '#c0392b'); }
+}
+
+async function cloudLoad() {
+  if (!JSONBIN_ID) return null;
+  try {
+    showSyncStatus('⟳ Učitavanje...');
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    });
+    if (resp.ok) {
+      const json = await resp.json();
+      showSyncStatus('✓ Sinhronizovano', '#27ae60');
+      return json.record;
+    }
+  } catch(e) { showSyncStatus('⚠ Nema interneta', '#c0392b'); }
+  return null;
+}
+
+function save() {
+  // Always save locally first
+  try { localStorage.setItem('ozEvidencija', JSON.stringify(state)); } catch(e) {}
+  // Debounce cloud save
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => cloudSave({ days: state.days, activeDayId: state.activeDayId, admins: loadAdmins() }), 800);
+}
+
+function load() {
+  try {
+    const d = localStorage.getItem('ozEvidencija');
+    if (d) state = JSON.parse(d);
+  } catch(e) {}
+}
+
+async function initCloud() {
+  if (!JSONBIN_ID) {
+    showSyncStatus('⚠ Bin nije podešen', '#c0392b');
+    return;
+  }
+  const cloudData = await cloudLoad();
+  if (cloudData) {
+    if (cloudData.days) state.days = cloudData.days;
+    if (cloudData.activeDayId !== undefined) state.activeDayId = cloudData.activeDayId;
+    if (cloudData.admins) saveAdmins(cloudData.admins);
+    try { localStorage.setItem('ozEvidencija', JSON.stringify(state)); } catch(e) {}
+    render();
+  }
+}
+
+async function setBinId(id) {
+  JSONBIN_ID = id.trim();
+  localStorage.setItem('ozBinId', JSONBIN_ID);
+  await initCloud();
+}
+
+
+function uid() { return Math.random().toString(36).slice(2,9); }
+
+// ===== INIT =====
+load();
+render();
+
+// ===== RENDER =====
+function render() {
+  renderSidebar();
+  renderMain();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('daysList');
+  document.getElementById('totalDays').textContent = state.days.length;
+  if (!state.days.length) { list.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:0.82rem;text-align:center;">Nema dana</div>'; return; }
+  list.innerHTML = state.days.map(day => {
+    const totalStaff = day.shifts.reduce((s,sh)=>s+sh.staff.length, 0);
+    const arrived = day.shifts.reduce((s,sh)=>s+sh.staff.filter(p=>p.status==='dosao').length, 0);
+    const isActive = day.id === state.activeDayId;
+    return `<div class="day-item${isActive?' active':''}" onclick="selectDay('${day.id}')">
+      <div class="day-date">${formatDate(day.date)}</div>
+      <div class="day-meta">${day.name||'—'}</div>
+      <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+        <span class="day-badge" style="background:var(--accent2);color:#fff">${day.shifts.length} smena</span>
+        <span class="day-badge">${totalStaff} lj.</span>
+        ${arrived>0?`<span class="day-badge" style="background:var(--green)">${arrived} ✓</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMain() {
+  const main = document.getElementById('mainContent');
+  if (!state.activeDayId) {
+    main.innerHTML = `<div class="empty-state"><div class="icon">📅</div><h2>Nema unetih dana</h2><p>Kliknite <strong>"+ Novi dan"</strong> da kreirate prvi radni dan.</p></div>`;
+    return;
+  }
+  const day = state.days.find(d=>d.id===state.activeDayId);
+  if (!day) return;
+
+  // Stats
+  const totalStaff = day.shifts.reduce((s,sh)=>s+sh.staff.length,0);
+  const arrived = day.shifts.reduce((s,sh)=>s+sh.staff.filter(p=>p.status==='dosao').length,0);
+  const absent = day.shifts.reduce((s,sh)=>s+sh.staff.filter(p=>p.status==='nije').length,0);
+
+  main.innerHTML = `
+    <div class="day-header">
+      <div class="day-header-info">
+        <h2>${formatDate(day.date)} — ${day.name||'Radni dan'}</h2>
+        <p style="color:var(--muted);margin-top:4px;font-size:0.88rem">${day.shifts.length} smena · ${totalStaff} zaposlenih</p>
+      </div>
+      <div class="day-header-actions">
+        <button class="btn btn-secondary btn-sm" onclick="openNewShiftModal('${day.id}')">+ Dodaj smenu</button>
+        <button class="btn btn-success btn-sm" onclick="exportDayToExcel('${day.id}')">⬇ Excel</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteDay('${day.id}')">🗑 Dan</button>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-chip blue"><div class="val">${totalStaff}</div><div>Ukupno</div></div>
+      <div class="stat-chip green"><div class="val">${arrived}</div><div>Došli ✓</div></div>
+      <div class="stat-chip red"><div class="val">${absent}</div><div>Nisu došli ✗</div></div>
+      <div class="stat-chip"><div class="val">${totalStaff-arrived-absent}</div><div>Neoznačeno</div></div>
+    </div>
+
+    ${day.shifts.map(sh => renderShift(day.id, sh)).join('')}
+
+    ${day.shifts.length===0?`<div class="empty-state" style="padding:40px 20px"><div class="icon">📋</div><p>Dodajte prvu smenu za ovaj dan.</p></div>`:''}
+
+    ${day.shifts.length>0 ? (() => {
+      const ukupnoDnevnice = day.shifts.reduce((total, sh) => total + sh.staff.reduce((s,p) => s+(parseFloat(p.dnevnica)||0), 0), 0);
+      const ukupnoZaposlenih = day.shifts.reduce((s,sh) => s+sh.staff.length, 0);
+      return ukupnoDnevnice > 0 ? `<div style="margin-top:8px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.5rem">💰</span>
+          <div>
+            <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">Ukupne dnevnice za dan</div>
+            <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">${ukupnoZaposlenih} zaposlenih · ${day.shifts.length} smena</div>
+          </div>
+        </div>
+        <div style="font-size:1.8rem;font-weight:800;color:var(--accent)">${ukupnoDnevnice.toLocaleString('sr-RS')} RSD</div>
+      </div>` : '';
+    })() : ''}
+  `;
+}
+
+function renderShift(dayId, sh) {
+  const rows = sh.staff.map((p,i) => `
+    <tr>
+      <td class="row-num">${i+1}</td>
+      <td><input class="inline-input name-input" value="${esc(p.name)}" placeholder="Ime i prezime" onchange="updateStaff('${dayId}','${sh.id}','${p.id}','name',this.value)"></td>
+      <td><input class="inline-input" value="${esc(p.phone)}" placeholder="06x xxx xxx" onchange="updateStaff('${dayId}','${sh.id}','${p.id}','phone',this.value)" style="width:130px"></td>
+      <td><input class="inline-input time-input" value="${esc(p.from)}" placeholder="14" onchange="updateStaff('${dayId}','${sh.id}','${p.id}','from',this.value)"></td>
+      <td><input class="inline-input time-input" value="${esc(p.to)}" placeholder="22" onchange="updateStaff('${dayId}','${sh.id}','${p.id}','to',this.value)"></td>
+      <td>
+        <button class="status-badge status-${p.status}" onclick="cycleStatus('${dayId}','${sh.id}','${p.id}')">
+          ${statusLabel(p.status)}
+        </button>
+      </td>
+      <td><input class="inline-input" value="${esc(p.dnevnica)}" placeholder="0" onchange="updateStaff('${dayId}','${sh.id}','${p.id}','dnevnica',this.value)" style="width:90px;text-align:right;color:var(--accent);font-weight:700"></td>
+      <td><input class="inline-input comment-input" value="${esc(p.comment)}" placeholder="Komentar..." onchange="updateStaff('${dayId}','${sh.id}','${p.id}','comment',this.value)"></td>
+      <td><button class="btn-del" onclick="deleteStaff('${dayId}','${sh.id}','${p.id}')" title="Obriši">✕</button></td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="shift-card">
+      <div class="shift-header">
+        <div class="shift-title">
+          <input class="shift-label-input" value="${esc(sh.name)}" onchange="updateShiftName('${dayId}','${sh.id}',this.value)">
+        </div>
+        <span class="shift-time-badge">${sh.from||'?'}h – ${sh.to||'?'}h</span>
+        <div class="shift-actions">
+          <button class="btn btn-secondary btn-sm" onclick="deleteShift('${dayId}','${sh.id}')">🗑</button>
+        </div>
+      </div>
+      <table class="staff-table">
+        <thead><tr>
+          <th>#</th><th>Ime i prezime</th><th>Broj telefona</th>
+          <th>Od</th><th>Do</th><th>Status</th><th>Dnevnica (RSD)</th><th>Komentar</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <button class="add-row-btn" onclick="addStaff('${dayId}','${sh.id}')">+ Dodaj zaposlenog</button>
+      <div style="padding:8px 16px;text-align:right;font-size:0.82rem;color:var(--muted);border-top:1px solid var(--border)">
+        Ukupno dnevnice: <strong style="color:var(--accent);font-size:0.95rem">${sh.staff.reduce((s,p)=>s+(parseFloat(p.dnevnica)||0),0).toLocaleString('sr-RS')} RSD</strong>
+      </div>
+    </div>
+  `;
+}
+
+function statusLabel(s) {
+  if (s==='dosao') return '✓ Došao';
+  if (s==='nije') return '✗ Nije došao';
+  return '— Neodređeno';
+}
+function cycleStatus(dayId, shiftId, staffId) {
+  const sh = getShift(dayId, shiftId);
+  const p = sh.staff.find(x=>x.id===staffId);
+  const cycle = ['neodredjeno','dosao','nije'];
+  p.status = cycle[(cycle.indexOf(p.status)+1)%3];
+  save(); renderMain(); renderSidebar();
+}
+
+// ===== CRUD =====
+function selectDay(id) { state.activeDayId = id; render(); }
+
+function openNewDayModal() {
+  document.getElementById('newDayDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('newDayName').value = '';
+  document.getElementById('newDayModal').style.display = 'flex';
+}
+function createDay() {
+  const date = document.getElementById('newDayDate').value;
+  const name = document.getElementById('newDayName').value.trim();
+  if (!date) return alert('Unesite datum!');
+  const day = { id: uid(), date, name, shifts: [] };
+  state.days.unshift(day);
+  state.activeDayId = day.id;
+  save(); closeModal('newDayModal'); render();
+}
+function deleteDay(dayId) {
+  if (!confirm('Obrisati ceo dan i sve smene?')) return;
+  state.days = state.days.filter(d=>d.id!==dayId);
+  if (state.activeDayId===dayId) state.activeDayId = state.days[0]?.id||null;
+  save(); render();
+}
+
+function openNewShiftModal(dayId) {
+  pendingDayId = dayId;
+  document.getElementById('newShiftName').value = '';
+  document.getElementById('newShiftFrom').value = '';
+  document.getElementById('newShiftTo').value = '';
+  document.getElementById('newShiftModal').style.display = 'flex';
+}
+function createShift() {
+  const name = document.getElementById('newShiftName').value.trim() || 'Nova smena';
+  const from = document.getElementById('newShiftFrom').value.trim();
+  const to = document.getElementById('newShiftTo').value.trim();
+  const day = state.days.find(d=>d.id===pendingDayId);
+  if (!day) return;
+  day.shifts.push({ id: uid(), name, from, to, staff: [] });
+  save(); closeModal('newShiftModal'); render();
+}
+function deleteShift(dayId, shiftId) {
+  if (!confirm('Obrisati ovu smenu?')) return;
+  const day = state.days.find(d=>d.id===dayId);
+  day.shifts = day.shifts.filter(s=>s.id!==shiftId);
+  save(); renderMain(); renderSidebar();
+}
+function updateShiftName(dayId, shiftId, val) {
+  getShift(dayId, shiftId).name = val; save();
+}
+
+function addStaff(dayId, shiftId) {
+  const sh = getShift(dayId, shiftId);
+  sh.staff.push({ id: uid(), name:'', phone:'', from: sh.from||'', to: sh.to||'', status:'neodredjeno', dnevnica:'', comment:'' });
+  save(); renderMain();
+}
+function updateStaff(dayId, shiftId, staffId, field, val) {
+  const p = getShift(dayId, shiftId).staff.find(x=>x.id===staffId);
+  p[field] = val; save();
+}
+function deleteStaff(dayId, shiftId, staffId) {
+  const sh = getShift(dayId, shiftId);
+  sh.staff = sh.staff.filter(x=>x.id!==staffId);
+  save(); renderMain(); renderSidebar();
+}
+
+function getShift(dayId, shiftId) {
+  return state.days.find(d=>d.id===dayId).shifts.find(s=>s.id===shiftId);
+}
+
+// ===== MODAL =====
+function closeModal(id) { document.getElementById(id).style.display='none'; }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.style.display='none'; }));
+
+// ===== HELPERS =====
+function esc(s) { return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function formatDate(d) {
+  if (!d) return '—';
+  const parts = d.split('-');
+  return `${parts[2]}.${parts[1]}.${parts[0]}.`;
+}
+
+// ===== EXCEL EXPORT (XLSX.js) =====
+function statusExcel(s) {
+  if (s==='dosao') return '✓ Došao';
+  if (s==='nije') return '✗ Nije došao';
+  return '';
+}
+
+function exportDayToExcel(dayId) {
+  const day = state.days.find(d => d.id === dayId);
+  if (!day) return;
+  const wb = XLSX.utils.book_new();
+  day.shifts.forEach((sh, idx) => {
+    const rows = [];
+    rows.push([day.name || day.date, '', '', '', '', '', '', '', '']);
+    rows.push([`Datum: ${formatDate(day.date)}`, '', '', `${sh.name} | ${sh.from||'?'}h - ${sh.to||'?'}h`, '', '', '', '', '']);
+    rows.push(['#', 'Ime i prezime', 'Broj telefona', 'Od', 'Do', 'Status', 'Dnevnica (RSD)', 'Komentar', 'Potpis']);
+    sh.staff.forEach((p, i) => {
+      rows.push([i+1, p.name||'', p.phone||'', p.from||'', p.to||'', statusExcel(p.status), p.dnevnica||'', p.comment||'', '']);
+    });
+    const ukupno = sh.staff.reduce((s,p) => s+(parseFloat(p.dnevnica)||0), 0);
+    rows.push(['', '', '', '', '', 'UKUPNO:', ukupno + ' RSD', '', '']);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [4,24,16,6,6,14,14,24,20].map(w=>({wch:w}));
+    const name = (`${sh.name}`).slice(0,31);
+    XLSX.utils.book_append_sheet(wb, ws, name || `Smena ${idx+1}`);
+  });
+  XLSX.writeFile(wb, `Evidencija_${day.date}_${(day.name||'dan').replace(/[\/\\:*?"<>|]/g,'_')}.xlsx`);
+}
+
+function exportAllToExcel() {
+  if (!state.days.length) return alert('Nema podataka za export.');
+  const wb = XLSX.utils.book_new();
+  state.days.forEach(day => {
+    day.shifts.forEach((sh, idx) => {
+      const rows = [];
+      rows.push([day.name || day.date]);
+      rows.push([`Datum: ${formatDate(day.date)}`, '', '', `${sh.name} | ${sh.from||'?'}h - ${sh.to||'?'}h`]);
+      rows.push(['#', 'Ime i prezime', 'Broj telefona', 'Od', 'Do', 'Status', 'Dnevnica (RSD)', 'Komentar', 'Potpis']);
+      sh.staff.forEach((p, i) => {
+        rows.push([i+1, p.name||'', p.phone||'', p.from||'', p.to||'', statusExcel(p.status), p.dnevnica||'', p.comment||'', '']);
+      });
+      const ukupno = sh.staff.reduce((s,p) => s+(parseFloat(p.dnevnica)||0), 0);
+      rows.push(['', '', '', '', '', 'UKUPNO:', ukupno + ' RSD', '', '']);
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [4,24,16,6,6,14,14,24,20].map(w=>({wch:w}));
+      const sheetName = `${day.date} ${sh.name}`.slice(0,31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+  });
+  XLSX.writeFile(wb, 'Evidencija_Ljudstva_Sve.xlsx');
+}
+
+// Enter on shift modal
+function applyBinId() {
+  const id = document.getElementById('binIdInput').value.trim();
+  if (!id) return alert('Unesite Bin ID!');
+  setBinId(id);
+  closeModal('binSetupModal');
+}
+
+// Call initCloud after login
+const _origCheckPin = checkPin;
+// Patch init to call cloud after DOM ready
+window.addEventListener('DOMContentLoaded', () => {
+  initPinScreen();
+  // Show current bin status
+  if (JSONBIN_ID) {
+    initCloud();
+  }
+});
+
+document.getElementById('newShiftTo').addEventListener('keydown', e => { if(e.key==='Enter') createShift(); });
+document.getElementById('newDayName').addEventListener('keydown', e => { if(e.key==='Enter') createDay(); });
+</script>
+</body>
+</html>
